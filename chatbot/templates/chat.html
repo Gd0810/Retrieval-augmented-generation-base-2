@@ -1,0 +1,352 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Assistant - Enterprise RAG</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
+    
+    .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    .slide-in { animation: slideIn 0.5s ease-out forwards; }
+    .typing { animation: pulse 1.4s ease-in-out infinite; }
+    
+    .glass {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    .message-user {
+      background: #1e293b;
+      color: white;
+      border-radius: 18px 18px 4px 18px;
+    }
+
+    .message-bot {
+      background: #f8fafc;
+      color: #1e293b;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px 18px 18px 4px;
+    }
+
+    .shimmer {
+      background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.2), transparent);
+      background-size: 1000px 100%;
+      animation: shimmer 2s infinite;
+    }
+
+    textarea {
+      field-sizing: content;
+      max-height: 120px;
+    }
+
+    .suggestion-chip {
+      transition: all 0.2s ease;
+    }
+    .suggestion-chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      background: #f1f5f9;
+    }
+
+    .btn-primary {
+      background: #1e293b;
+      transition: all 0.2s ease;
+    }
+    .btn-primary:hover {
+      background: #0f172a;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .avatar-user {
+      background: #1e293b;
+      color: white;
+    }
+
+    .avatar-bot {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body class="h-full bg-gradient-to-br from-slate-50 to-slate-100 text-gray-800 relative overflow-hidden">
+
+  <!-- Subtle background pattern -->
+  <div class="fixed inset-0 opacity-[0.03]" style="background-image: radial-gradient(circle, #1e293b 1px, transparent 1px); background-size: 24px 24px;"></div>
+
+  <div class="relative z-10 h-full flex items-center justify-center p-4">
+    
+    <!-- Main chat container -->
+    <div class="w-full max-w-5xl h-[92vh] flex flex-col gap-4">
+      
+      <!-- Header card -->
+      <div class="glass rounded-2xl shadow-lg px-6 py-4 slide-in">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="bg-slate-800 rounded-xl p-3 shadow-md">
+              <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+              </svg>
+            </div>
+            <div>
+              <h1 class="font-semibold text-xl text-slate-800">AI Assistant</h1>
+              <p class="text-sm text-slate-500 flex items-center gap-2">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                Enterprise RAG Technology
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="clear-chat" class="px-4 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 transition-all duration-200 text-sm font-medium text-slate-700 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              Clear Chat
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat messages -->
+      <div class="flex-1 glass rounded-2xl shadow-lg overflow-hidden flex flex-col fade-in" style="animation-delay: 0.1s;">
+        <div id="chat-box" class="flex-1 overflow-y-auto px-6 py-6 space-y-4"></div>
+        
+        <!-- Suggestion chips -->
+        <div id="suggestions" class="px-6 pb-4 grid grid-cols-2 gap-3">
+          <button class="suggestion-chip bg-white rounded-xl px-4 py-3.5 text-left border border-slate-200 shadow-sm">
+            <div class="font-semibold text-sm text-slate-800 mb-1 flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+              </svg>
+              Explain a Concept
+            </div>
+            <div class="text-xs text-slate-500">Help me understand complex topics</div>
+          </button>
+          <button class="suggestion-chip bg-white rounded-xl px-4 py-3.5 text-left border border-slate-200 shadow-sm">
+            <div class="font-semibold text-sm text-slate-800 mb-1 flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+              </svg>
+              Generate Ideas
+            </div>
+            <div class="text-xs text-slate-500">Brainstorm solutions and strategies</div>
+          </button>
+          <button class="suggestion-chip bg-white rounded-xl px-4 py-3.5 text-left border border-slate-200 shadow-sm">
+            <div class="font-semibold text-sm text-slate-800 mb-1 flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              Analyze Data
+            </div>
+            <div class="text-xs text-slate-500">Process and interpret information</div>
+          </button>
+          <button class="suggestion-chip bg-white rounded-xl px-4 py-3.5 text-left border border-slate-200 shadow-sm">
+            <div class="font-semibold text-sm text-slate-800 mb-1 flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              Write Content
+            </div>
+            <div class="text-xs text-slate-500">Create professional documents</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Input area -->
+      <div class="glass rounded-2xl shadow-lg p-4 fade-in" style="animation-delay: 0.2s;">
+        <form id="chat-form" class="flex items-end gap-3">
+          <div class="flex-1 relative">
+            <textarea
+              id="question"
+              rows="1"
+              placeholder="Type your message here..."
+              class="w-full resize-none rounded-xl px-4 py-3 pr-12 bg-white border border-slate-200 focus:border-slate-400 focus:ring-0 focus:outline-none transition-all duration-200"
+            ></textarea>
+            <div class="absolute right-3 bottom-3">
+              <span id="char-count" class="text-xs text-slate-400">0</span>
+            </div>
+          </div>
+          <button type="button" id="mic" class="shrink-0 grid place-items-center h-11 w-11 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-all duration-200">
+            <svg class="h-5 w-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+            </svg>
+          </button>
+          <button type="submit" class="btn-primary shrink-0 grid place-items-center h-11 w-11 rounded-xl text-white shadow-md">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+          </button>
+        </form>
+        <div class="flex items-center justify-between mt-3 px-1">
+          <div class="flex items-center gap-2 text-xs text-slate-500">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            <span>Secure • Enterprise-grade encryption</span>
+          </div>
+          <div id="status" class="flex items-center gap-2 text-xs text-slate-500">
+            <div class="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+            <span>Ready</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- DOM References ---------- */
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('question');
+    const chatBox = document.getElementById('chat-box');
+    const suggestions = document.getElementById('suggestions');
+    const charCount = document.getElementById('char-count');
+    const statusEl = document.getElementById('status');
+    const clearBtn = document.getElementById('clear-chat');
+
+    /* ---------- Message Management ---------- */
+    let messageCount = 0;
+
+    function appendMessage(sender, text, isTyping = false) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `fade-in flex gap-3 ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+      
+      const avatarUser = '<div class="shrink-0 w-9 h-9 rounded-lg avatar-user flex items-center justify-center text-xs font-semibold shadow-sm">You</div>';
+      const avatarBot = '<div class="shrink-0 w-9 h-9 rounded-lg avatar-bot flex items-center justify-center shadow-sm"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div>';
+      
+      const messageClass = sender === 'user' ? 'message-user' : 'message-bot';
+      const typingClass = isTyping ? 'typing shimmer' : '';
+      
+      wrapper.innerHTML = `
+        ${sender === 'bot' ? avatarBot : ''}
+        <div class="max-w-[75%] px-4 py-3 shadow-sm ${messageClass} ${typingClass}">
+          <div class="text-sm leading-relaxed whitespace-pre-wrap">${text}</div>
+          ${!isTyping ? `<div class="text-xs opacity-60 mt-1.5">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})}</div>` : ''}
+        </div>
+        ${sender === 'user' ? avatarUser : ''}
+      `;
+      
+      chatBox.appendChild(wrapper);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      messageCount++;
+      
+      if (messageCount > 0) {
+        suggestions.style.display = 'none';
+      }
+      
+      return wrapper;
+    }
+
+    /* ---------- Status Updates ---------- */
+    function updateStatus(text, color = 'emerald') {
+      statusEl.innerHTML = `
+        <div class="h-1.5 w-1.5 rounded-full bg-${color}-500"></div>
+        <span>${text}</span>
+      `;
+    }
+
+    /* ---------- Form Submission ---------- */
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const question = input.value.trim();
+      if (!question) return;
+      
+      appendMessage('user', question);
+      input.value = '';
+      charCount.textContent = '0';
+      autoResize();
+
+      updateStatus('Processing...', 'amber');
+      const thinkingEl = appendMessage('bot', 'Analyzing your question...', true);
+
+      try {
+        const res = await fetch(`/chatbot/?question=${encodeURIComponent(question)}`);
+        const data = await res.json();
+        thinkingEl.remove();
+        appendMessage('bot', data.answer || 'I apologize, but I could not generate a response.');
+        updateStatus('Ready', 'emerald');
+      } catch (err) {
+        thinkingEl.remove();
+        appendMessage('bot', 'Connection error. Please check your network and try again.');
+        updateStatus('Error', 'red');
+      }
+    });
+
+    /* ---------- Textarea Auto-resize ---------- */
+    function autoResize() {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    }
+    
+    input.addEventListener('input', () => {
+      autoResize();
+      charCount.textContent = input.value.length;
+    });
+
+    /* ---------- Keyboard Shortcuts ---------- */
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.dispatchEvent(new Event('submit'));
+      }
+    });
+
+    /* ---------- Suggestion Chips ---------- */
+    document.querySelectorAll('.suggestion-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const text = chip.querySelector('.text-xs').textContent;
+        input.value = text;
+        input.focus();
+        autoResize();
+      });
+    });
+
+    /* ---------- Voice Input ---------- */
+    document.getElementById('mic').addEventListener('click', () => {
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.onresult = (event) => {
+          input.value = event.results[0][0].transcript;
+          autoResize();
+        };
+        recognition.start();
+        updateStatus('Listening...', 'blue');
+        recognition.onend = () => updateStatus('Ready', 'emerald');
+      } else {
+        alert('Speech recognition not supported in your browser');
+      }
+    });
+
+    /* ---------- Clear Chat ---------- */
+    clearBtn.addEventListener('click', () => {
+      if (confirm('Clear all messages?')) {
+        chatBox.innerHTML = '';
+        messageCount = 0;
+        suggestions.style.display = 'grid';
+        appendMessage('bot', 'Chat cleared. How can I assist you today?');
+      }
+    });
+
+    /* ---------- Welcome Message ---------- */
+    appendMessage('bot', 'Hello! I\'m your AI assistant. I use advanced retrieval-augmented generation to provide accurate, context-aware responses. How can I help you today?');
+  </script>
+</body>
+</html>
